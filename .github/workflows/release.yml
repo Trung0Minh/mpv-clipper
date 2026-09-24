@@ -22,6 +22,8 @@ jobs:
           - os: macos-15-intel
             name: macos-x86_64
     runs-on: ${{ matrix.os }}
+    env:
+      QT_FORCE_STDERR_LOGGING: '1'
     defaults:
       run:
         shell: bash
@@ -127,6 +129,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: Compress-Archive -Path dist/* -DestinationPath mpv-clipper-windows-x86_64.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-logs-${{ matrix.name }}
+          path: build-release/Testing/Temporary/
       - uses: actions/upload-artifact@v4
         with:
           name: mpv-clipper-${{ matrix.name }}

@@ -127,8 +127,11 @@ void MpvPlayer::events()
         else if (event->event_id == MPV_EVENT_PLAYBACK_RESTART && stepPhase) {
             if (stepPhase == 1) {
                 if (!stepSeekAcknowledged || !stepSeekStarted) continue;
+                int seeking = 0;
+                mpv_get_property(mpv, "seeking", MPV_FORMAT_FLAG, &seeking);
+                if (seeking) continue; // An earlier seek can report restart while the latest is pending.
                 stepOrigin = position(); stepPhase = 2; command({stepBackward ? "frame-back-step" : "frame-step"});
-            } else {
+            } else if (std::abs(position() - stepOrigin) > 0.000001) {
                 stepPhase = 0; stepTimeout.stop(); pause(true);
                 emit frameStepped(position()); emit stepFinished();
             }

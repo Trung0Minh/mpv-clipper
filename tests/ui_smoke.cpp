@@ -7,12 +7,13 @@
 #include <QTemporaryDir>
 #include <stdexcept>
 #include <QSurfaceFormat>
+#include <source_location>
 
-static void until(const std::function<bool()> &condition)
+static void until(const std::function<bool()> &condition, std::source_location location = std::source_location::current())
 {
     QElapsedTimer timer; timer.start();
     while (!condition() && timer.elapsed() < 12000) QTest::qWait(30);
-    if (!condition()) throw std::runtime_error("UI operation timed out");
+    if (!condition()) throw std::runtime_error("UI operation timed out at line " + std::to_string(location.line()));
 }
 int main(int argc, char **argv)
 {

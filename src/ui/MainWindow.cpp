@@ -85,6 +85,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 }
 MainWindow::~MainWindow()
 {
+    // Child focus-out signals can fire after our member state has been destroyed.
+    for (auto *child : findChildren<QObject *>()) child->disconnect(this);
+    probe.disconnect(this); job.disconnect(this);
     // The render context must be freed before its mpv handle.
     delete preview; preview = nullptr;
     delete player; player = nullptr;
@@ -445,7 +448,7 @@ void MainWindow::open(const LaunchPayload &payload)
             if (stepping == 3) { position = std::clamp(time, 0.0, media.duration); updateRange(); }
             else setBoundary(stepping, time);
         });
-        connect(player, &MpvPlayer::stepFinished, this, [this] { stepping = 0; validate(); });
+        connect(player, &MpvPlayer::stepFinished, this, [this] { stepping = 0; updateTracks(); });
     } else player->pause(true);
     probe.start(pending.source);
 }
@@ -507,7 +510,8 @@ void MainWindow::refreshTracks()
 void MainWindow::updateTracks()
 {
     if (syncing) return;
-    if (player && !probing) {
+    // Changing tracks can restart decoding and cancel an in-flight frame step.
+    if (player && !probing && !stepping) {
         int a = audio->currentData().toInt(), s = subtitle->currentIndex();
         player->set("aid", format->currentText() == "GIF" || a < 0 || a >= media.audio.size() || media.audio[a].mpvId < 0 ? "no" : QString::number(media.audio[a].mpvId));
         player->set("sub-visibility", subtitleMode->currentText() == "None" ? "no" : "yes");
