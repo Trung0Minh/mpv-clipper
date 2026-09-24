@@ -42,8 +42,8 @@ Darwin)
     brew_prefix=$(brew --prefix)
     cp -R build-release/mpv-clipper.app "$stage/"
     app="$stage/mpv-clipper.app"
-    cp "$brew_prefix/bin/ffmpeg" "$brew_prefix/bin/ffprobe" "$app/Contents/MacOS/"
-    "$(brew --prefix qt)/bin/macdeployqt" "$app" \
+    cp "$(brew --prefix ffmpeg@7)/bin/ffmpeg" "$(brew --prefix ffmpeg@7)/bin/ffprobe" "$app/Contents/MacOS/"
+    "$(brew --prefix qtbase)/bin/macdeployqt" "$app" \
         -executable="$app/Contents/MacOS/ffmpeg" -executable="$app/Contents/MacOS/ffprobe" \
         -libpath="$brew_prefix/lib" -always-overwrite
     # macdeployqt handles Qt plugins; dylibbundler closes the non-Qt dependency tree.

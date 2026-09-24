@@ -9,8 +9,19 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Network Concurrent OpenGL OpenGLWidgets)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+if(WIN32)
+    # MSYS pkg-config paths can be POSIX paths that native CMake cannot resolve.
+    find_path(MPV_INCLUDE_DIR mpv/client.h REQUIRED)
+    find_library(MPV_LIBRARY NAMES mpv REQUIRED)
+    add_library(mpv_native UNKNOWN IMPORTED)
+    set_target_properties(mpv_native PROPERTIES IMPORTED_LOCATION "${MPV_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${MPV_INCLUDE_DIR}")
+    set(MPV_TARGET mpv_native)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+    set(MPV_TARGET PkgConfig::MPV)
+endif()
 
 add_library(clipper_core
     src/app/LaunchOptions.cpp
@@ -31,7 +42,7 @@ add_library(clipper_core
 )
 target_include_directories(clipper_core PUBLIC src)
 target_link_libraries(clipper_core PUBLIC
-    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::Concurrent Qt6::OpenGL Qt6::OpenGLWidgets PkgConfig::MPV
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::Concurrent Qt6::OpenGL Qt6::OpenGLWidgets ${MPV_TARGET}
 )
 add_executable(mpv-clipper src/main.cpp)
 if(APPLE)

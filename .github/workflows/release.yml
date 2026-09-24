@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           if [[ '${{ matrix.name }}' == macos-arm64 ]]; then test "$(uname -m)" = arm64; else test "$(uname -m)" = x86_64; fi
-          brew install cmake ninja pkg-config qt mpv ffmpeg dylibbundler
+          brew install cmake ninja pkg-config qtbase mpv ffmpeg@7 dylibbundler
       - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
         with:
@@ -51,8 +51,8 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           if [[ "$RUNNER_OS" == macOS ]]; then
-            export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
-            export PATH="$(brew --prefix qt)/bin:$PATH"
+            export CMAKE_PREFIX_PATH="$(brew --prefix qtbase)"
+            export PATH="$(brew --prefix qtbase)/bin:$(brew --prefix ffmpeg@7)/bin:$PATH"
           fi
           cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build-release -j 3
@@ -98,7 +98,7 @@ jobs:
           package=$(cat build-release/package-path.txt)
           if [[ "$RUNNER_OS" == Linux ]]; then
             sh "$package/install.sh" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
-            QT_QPA_PLATFORM=offscreen "$package/squashfs-root/AppRun" --version
+            QT_QPA_PLATFORM=xcb xvfb-run -a "$package/squashfs-root/AppRun" --version
             "$package/squashfs-root/usr/bin/ffmpeg" -version
             "$package/squashfs-root/usr/bin/ffprobe" -version
             sh "$package/uninstall.sh" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
