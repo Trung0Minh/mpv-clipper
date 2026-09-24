@@ -17,8 +17,8 @@ static void until(const std::function<bool()> &condition, std::source_location l
 }
 int main(int argc, char **argv)
 {
-#ifdef Q_OS_WIN
-    // GitHub's Windows service session has no usable desktop/OpenGL surface.
+#if defined(Q_OS_WIN) || defined(Q_OS_LINUX)
+    // Hosted runners do not provide a stable desktop/video acceleration surface.
     if (qEnvironmentVariableIsSet("GITHUB_ACTIONS")) return 77;
 #endif
 #ifdef Q_OS_LINUX
