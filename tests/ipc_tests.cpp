@@ -5,10 +5,22 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <QDebug>
+#include <cstring>
+#include <memory>
 #include <stdexcept>
 
 int main(int argc, char **argv)
 {
+    const bool childMode = [&] {
+        for (int i = 1; i < argc; ++i)
+            if (std::strcmp(argv[i], "--child") == 0) return true;
+        return false;
+    }();
+    std::unique_ptr<QTemporaryDir> dir;
+    if (!childMode) {
+        dir = std::make_unique<QTemporaryDir>();
+        qputenv("XDG_RUNTIME_DIR", dir->path().toUtf8());
+    }
     QCoreApplication app(argc, argv);
     try {
         if (app.arguments().contains("--child")) {
@@ -17,8 +29,6 @@ int main(int argc, char **argv)
             if (client.start("{\"test\":true}", wait)) return 2;
             return wait ? app.exec() : 0;
         }
-        QTemporaryDir dir;
-        qputenv("XDG_RUNTIME_DIR", dir.path().toUtf8());
         auto primary = std::make_unique<SingleInstance>();
         if (!primary->start("{}", false)) throw std::runtime_error("Primary instance failed");
         int received = 0;
