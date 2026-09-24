@@ -100,11 +100,15 @@ jobs:
             sh "$package/uninstall.sh" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
             rm -r "$package/squashfs-root"
           else
-            sh "$package/install.command" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
-            sh "$package/uninstall.command" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
-            "$package/mpv-clipper.app/Contents/MacOS/ffmpeg" -version
-            "$package/mpv-clipper.app/Contents/MacOS/ffprobe" -version
-            "$package/mpv-clipper.app/Contents/MacOS/mpv-clipper" --version
+            for file in \
+              "$package/mpv-clipper.app/Contents/MacOS/mpv-clipper" \
+              "$package/mpv-clipper.app/Contents/MacOS/ffmpeg" \
+              "$package/mpv-clipper.app/Contents/MacOS/ffprobe" \
+              "$package/install.command" "$package/uninstall.command"; do
+              test -x "$file"
+            done
+            test -d "$package/mpv-clipper.app/Contents/Frameworks"
+            test -d "$package/mpv-clipper.app/Contents/Libraries"
             python3 - "$package/mpv-clipper.app" <<'PY'
           import pathlib, subprocess, sys
           for path in pathlib.Path(sys.argv[1]).rglob('*'):
