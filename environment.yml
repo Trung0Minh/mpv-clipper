@@ -1,0 +1,15 @@
+name: mpv-clipper
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - cmake>=3.22
+  - ninja
+  - pkg-config
+  - cxx-compiler
+  - qt6-main>=6.4
+  - mpv
+  - expat
+  - zlib
+  - glib
+  - ffmpeg

@@ -1,0 +1,158 @@
+name: Portable release candidates
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: linux-x86_64
+          - os: windows-latest
+            name: windows-x86_64
+          - os: macos-15
+            name: macos-arm64
+          - os: macos-15-intel
+            name: macos-x86_64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config qt6-base-dev libqt6opengl6-dev libmpv-dev mpv ffmpeg xvfb libgl1-mesa-dri
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          if [[ '${{ matrix.name }}' == macos-arm64 ]]; then test "$(uname -m)" = arm64; else test "$(uname -m)" = x86_64; fi
+          brew install cmake ninja pkg-config qt mpv ffmpeg dylibbundler
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-mpv
+            mingw-w64-ucrt-x86_64-ffmpeg zip
+      - name: Build and test Unix
+        if: runner.os != 'Windows'
+        run: |
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
+            export PATH="$(brew --prefix qt)/bin:$PATH"
+          fi
+          cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-release -j 3
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb xvfb-run -a ctest --test-dir build-release --output-on-failure
+          else
+            ctest --test-dir build-release --output-on-failure
+          fi
+      - name: Build and test Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-release -j 3
+          ctest --test-dir build-release --output-on-failure
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        run: bash packaging/package.sh
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: bash packaging/package.sh
+      - name: Verify packaged Windows without MSYS2 on PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem dist -Directory | Select-Object -First 1
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $config = Join-Path $env:RUNNER_TEMP 'clipper packaged test'
+          & "$($package.FullName)\mpv-clipper.exe" --install-mpv --mpv-config $config
+          if ($LASTEXITCODE) { throw 'Packaged setup failed' }
+          & "$($package.FullName)\mpv-clipper.exe" --uninstall-mpv --mpv-config $config
+          if ($LASTEXITCODE) { throw 'Packaged removal failed' }
+          & "$($package.FullName)\ffmpeg.exe" -version
+          if ($LASTEXITCODE) { throw 'Packaged FFmpeg failed' }
+          & "$($package.FullName)\ffprobe.exe" -version
+          if ($LASTEXITCODE) { throw 'Packaged ffprobe failed' }
+          & "$($package.FullName)\mpv-clipper.exe" --version
+          if ($LASTEXITCODE) { throw 'Packaged Qt platform plugin failed' }
+      - name: Verify packaged Unix
+        if: runner.os != 'Windows'
+        run: |
+          package=$(cat build-release/package-path.txt)
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            sh "$package/install.sh" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
+            QT_QPA_PLATFORM=offscreen "$package/squashfs-root/AppRun" --version
+            "$package/squashfs-root/usr/bin/ffmpeg" -version
+            "$package/squashfs-root/usr/bin/ffprobe" -version
+            sh "$package/uninstall.sh" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
+            rm -r "$package/squashfs-root"
+          else
+            sh "$package/install.command" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
+            sh "$package/uninstall.command" --mpv-config "$RUNNER_TEMP/clipper packaged test" </dev/null
+            "$package/mpv-clipper.app/Contents/MacOS/ffmpeg" -version
+            "$package/mpv-clipper.app/Contents/MacOS/ffprobe" -version
+            "$package/mpv-clipper.app/Contents/MacOS/mpv-clipper" --version
+            python3 - "$package/mpv-clipper.app" <<'PY'
+          import pathlib, subprocess, sys
+          for path in pathlib.Path(sys.argv[1]).rglob('*'):
+              if not path.is_file() or 'Mach-O' not in subprocess.check_output(['file', '-b', str(path)], text=True):
+                  continue
+              for line in subprocess.check_output(['otool', '-L', str(path)], text=True).splitlines()[1:]:
+                  dep = line.strip().split(' (', 1)[0]
+                  if dep.startswith('/') and not dep.startswith(('/System/Library/', '/usr/lib/')):
+                      raise SystemExit(f'Nonportable dependency in {path}: {dep}')
+          PY
+          fi
+      - name: Archive Unix (preserves executable permissions)
+        if: runner.os != 'Windows'
+        run: tar -czf "mpv-clipper-${{ matrix.name }}.tar.gz" -C dist .
+      - name: Archive Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/* -DestinationPath mpv-clipper-windows-x86_64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mpv-clipper-${{ matrix.name }}
+          path: |
+            mpv-clipper-*.tar.gz
+            mpv-clipper-*.zip
+          if-no-files-found: error
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mpv-clipper-*
+          path: release-files
+          merge-multiple: true
+      - name: Add source and checksums
+        run: |
+          git archive --format=tar.gz --prefix=mpv-clipper/ -o release-files/mpv-clipper-source.tar.gz HEAD
+          cd release-files
+          sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
+      - name: Create draft for maintainer verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release-files/* --draft --verify-tag --title "mpv Clipper $GITHUB_REF_NAME" --notes-file packaging/RELEASE.md

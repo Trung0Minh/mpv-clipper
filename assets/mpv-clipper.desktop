@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=mpv Clipper
+Comment=Preview and export a clip from a local video
+Exec=mpv-clipper
+Icon=mpv-clipper
+Terminal=false
+Categories=AudioVideo;Video;

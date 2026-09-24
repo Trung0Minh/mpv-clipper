@@ -1,0 +1,4 @@
+# Copy to ~/.config/mpv/script-opts/clipper.conf
+# Absolute path to the built application; no shell quoting or arguments.
+executable=/path/to/mpv-clipper/build/mpv-clipper
+hotkey=Ctrl+Shift+x
