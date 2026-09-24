@@ -17,6 +17,10 @@ static void until(const std::function<bool()> &condition, std::source_location l
 }
 int main(int argc, char **argv)
 {
+#ifdef Q_OS_WIN
+    // GitHub's Windows service session has no usable desktop/OpenGL surface.
+    if (qEnvironmentVariableIsSet("GITHUB_ACTIONS")) return 77;
+#endif
 #ifdef Q_OS_LINUX
     if (qEnvironmentVariableIsEmpty("DISPLAY") && qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) return 77;
 #endif
