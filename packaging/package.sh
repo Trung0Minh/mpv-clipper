@@ -51,6 +51,19 @@ Darwin)
         -x "$app/Contents/MacOS/ffmpeg" -x "$app/Contents/MacOS/ffprobe" \
         -d "$app/Contents/Libraries" -p '@executable_path/../Libraries/' \
         -s "$brew_prefix/lib" -i "$app/Contents/Frameworks"
+    # Normalize bundled IDs and add search paths for libraries dylibbundler leaves untouched.
+    while IFS= read -r file; do
+        [[ "$(file -b "$file")" == *Mach-O* ]] || continue
+        install_name_tool -id "@rpath/$(basename "$file")" "$file" 2>/dev/null || true
+        install_name_tool -add_rpath '@loader_path/../Frameworks' "$file" 2>/dev/null || true
+        install_name_tool -add_rpath '@loader_path/../Libraries' "$file" 2>/dev/null || true
+        while IFS= read -r dependency; do
+            base=${dependency##*/}
+            [[ "$dependency" == "$brew_prefix/"* ]] || continue
+            [[ -e "$app/Contents/Frameworks/$base" || -e "$app/Contents/Libraries/$base" ]] || continue
+            install_name_tool -change "$dependency" "@rpath/$base" "$file"
+        done < <(otool -L "$file" | sed -n '2,$s/^[[:space:]]*\([^ ]*\).*/\1/p')
+    done < <(find "$app/Contents" -type f)
     for helper in ffmpeg ffprobe; do
         install_name_tool -add_rpath '@executable_path/../Frameworks' "$app/Contents/MacOS/$helper"
     done
