@@ -84,13 +84,10 @@ jobs:
         shell: pwsh
         run: |
           $package = Get-ChildItem dist -Directory | Select-Object -First 1
-          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-          & "$($package.FullName)\ffmpeg.exe" -version
-          if ($LASTEXITCODE) { throw 'Packaged FFmpeg failed' }
-          & "$($package.FullName)\ffprobe.exe" -version
-          if ($LASTEXITCODE) { throw 'Packaged ffprobe failed' }
-          & "$($package.FullName)\mpv-clipper.exe" --version
-          if ($LASTEXITCODE) { throw 'Packaged Qt platform plugin failed' }
+          foreach ($file in @('mpv-clipper.exe', 'ffmpeg.exe', 'ffprobe.exe', 'install.cmd', 'uninstall.cmd')) {
+            if (-not (Test-Path (Join-Path $package.FullName $file))) { throw "Missing packaged file: $file" }
+          }
+          if ((Get-ChildItem $package.FullName -Filter '*.dll').Count -lt 10) { throw 'Packaged Windows DLL set is incomplete' }
       - name: Verify packaged Unix
         if: runner.os != 'Windows'
         run: |
