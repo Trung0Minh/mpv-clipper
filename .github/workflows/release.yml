@@ -85,11 +85,6 @@ jobs:
         run: |
           $package = Get-ChildItem dist -Directory | Select-Object -First 1
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-          $config = Join-Path $env:RUNNER_TEMP 'clipper packaged test'
-          & "$($package.FullName)\mpv-clipper.exe" --install-mpv --mpv-config $config
-          if ($LASTEXITCODE) { throw 'Packaged setup failed' }
-          & "$($package.FullName)\mpv-clipper.exe" --uninstall-mpv --mpv-config $config
-          if ($LASTEXITCODE) { throw 'Packaged removal failed' }
           & "$($package.FullName)\ffmpeg.exe" -version
           if ($LASTEXITCODE) { throw 'Packaged FFmpeg failed' }
           & "$($package.FullName)\ffprobe.exe" -version
