@@ -18,14 +18,19 @@
 int main(int argc, char *argv[])
 {
     bool setup = false;
-    for (int i = 1; i < argc; ++i)
+    bool cliOnly = false;
+    for (int i = 1; i < argc; ++i) {
         setup |= !std::strcmp(argv[i], "--install-mpv") || !std::strcmp(argv[i], "--uninstall-mpv");
+        cliOnly |= !std::strcmp(argv[i], "--help") || !std::strcmp(argv[i], "-h") ||
+            !std::strcmp(argv[i], "--help-all") || !std::strcmp(argv[i], "--version") ||
+            !std::strcmp(argv[i], "-v");
+    }
 #ifdef Q_OS_MACOS
     QSurfaceFormat surface;
     surface.setVersion(3, 2); surface.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(surface);
 #endif
-    std::unique_ptr<QCoreApplication> app(setup ? new QCoreApplication(argc, argv) : new QApplication(argc, argv));
+    std::unique_ptr<QCoreApplication> app(setup || cliOnly ? new QCoreApplication(argc, argv) : new QApplication(argc, argv));
     QCoreApplication::setApplicationName("mpv-clipper");
     QCoreApplication::setApplicationVersion("0.1.0");
     QCoreApplication::setOrganizationName("mpv-clipper");
@@ -33,6 +38,7 @@ int main(int argc, char *argv[])
     QCommandLineParser parser;
     configureLaunchParser(parser);
     parser.process(*app);
+    if (cliOnly) return 0;
     if (setup) {
         try {
             if (parser.isSet("install-mpv") == parser.isSet("uninstall-mpv"))
