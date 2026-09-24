@@ -101,7 +101,7 @@ if(BUILD_TESTING)
     target_link_libraries(ui_smoke PRIVATE clipper_core Qt6::Test)
     add_test(NAME ui_smoke COMMAND ui_smoke)
     set_tests_properties(ui_smoke PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77)
-    find_program(MPV_EXECUTABLE mpv)
+    find_program(MPV_EXECUTABLE NAMES mpv.com mpv)
     if(MPV_EXECUTABLE)
         add_test(NAME bridge COMMAND ${MPV_EXECUTABLE} --no-config --idle=yes
             --vo=null --ao=null --script=${CMAKE_CURRENT_SOURCE_DIR}/tests/bridge_tests.lua)

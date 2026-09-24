@@ -36,9 +36,11 @@ local function run()
     properties.path = 'https://example.com/video'
     launch()
     assert(not command and last_message:find('Only local'))
-    local temp = os.tmpname()
+    local windows = package.config:sub(1, 1) == '\\'
+    local temp = windows and utils.join_path(os.getenv('TEMP'), 'clipper-test-' .. tostring(os.time())) or os.tmpname()
     os.remove(temp)
-    local source = temp .. " clip's [caf\195\169].mkv"
+    -- Lua's Windows io.open uses ANSI paths; Qt's Unicode paths are tested separately.
+    local source = temp .. (windows and " clip's [test].mkv" or " clip's [caf\195\169].mkv")
     local source_file = assert(io.open(source, 'wb'))
     source_file:close()
     properties.path = source

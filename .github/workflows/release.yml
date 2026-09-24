@@ -48,7 +48,7 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-mpv
-            mingw-w64-ucrt-x86_64-ffmpeg zip
+            mingw-w64-ucrt-x86_64-ffmpeg mingw-w64-ucrt-x86_64-mesa zip
       - name: Build and test Unix
         if: runner.os != 'Windows'
         run: |
@@ -67,6 +67,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
+          export QT_OPENGL=software
+          export QT_OPENGL_DLL="$(cygpath -m "$MINGW_PREFIX/bin/opengl32.dll")"
           cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build-release -j 3
           ctest --test-dir build-release --output-on-failure

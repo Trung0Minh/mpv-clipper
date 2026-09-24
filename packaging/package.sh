@@ -51,6 +51,9 @@ Darwin)
         -x "$app/Contents/MacOS/ffmpeg" -x "$app/Contents/MacOS/ffprobe" \
         -d "$app/Contents/Libraries" -p '@executable_path/../Libraries/' \
         -s "$brew_prefix/lib" -i "$app/Contents/Frameworks"
+    for helper in ffmpeg ffprobe; do
+        install_name_tool -add_rpath '@executable_path/../Frameworks' "$app/Contents/MacOS/$helper"
+    done
     codesign --force --deep --sign - "$app"
     codesign --verify --deep --strict "$app"
     cp packaging/install.sh "$stage/install.command"

@@ -47,22 +47,27 @@ ExportJob::ExportJob(QObject *parent) : QObject(parent)
             return;
         }
         QFileInfo target(settings.destination);
+        // QTemporaryFile::close retains its native handle; Windows cannot rename
+        // the file until the object is destroyed. Keep cleanup ownership locally.
+        const QString partial = output->fileName();
+        output->setAutoRemove(false); output.reset();
+        auto failedSave = [&](const QString &message) { QFile::remove(partial); complete(false, message); };
         if (replace) {
             if (target.isSymLink() || !target.isFile() || target.size() != oldSize ||
                 target.lastModified().toMSecsSinceEpoch() != oldMtime) {
-                complete(false, "The destination changed during export. Choose another filename."); return;
+                failedSave("The destination changed during export. Choose another filename."); return;
             }
 #ifdef Q_OS_WIN
-            const bool renamed = MoveFileExW(reinterpret_cast<LPCWSTR>(output->fileName().utf16()),
+            const bool renamed = MoveFileExW(reinterpret_cast<LPCWSTR>(partial.utf16()),
                 reinterpret_cast<LPCWSTR>(settings.destination.utf16()), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
 #else
-            const bool renamed = std::rename(QFile::encodeName(output->fileName()).constData(), QFile::encodeName(settings.destination).constData()) == 0;
+            const bool renamed = std::rename(QFile::encodeName(partial).constData(), QFile::encodeName(settings.destination).constData()) == 0;
 #endif
             if (!renamed) {
-                complete(false, "Could not replace the destination file."); return;
+                failedSave("Could not replace the destination file."); return;
             }
-        } else if (!QFile::rename(output->fileName(), settings.destination)) {
-            complete(false, "Could not save the export. The destination may already exist."); return;
+        } else if (!QFile::rename(partial, settings.destination)) {
+            failedSave("Could not save the export. The destination may already exist."); return;
         }
         emit progress(100); complete(true, "Export complete.");
     });
