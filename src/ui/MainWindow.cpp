@@ -235,7 +235,6 @@ void MainWindow::buildUi()
     zoomOut->setFixedWidth(32); zoomIn->setFixedWidth(32);
     auto *fitClip = new QPushButton("Zoom to Clip"); auto *fitVideo = new QPushButton("Fit Video");
     for (auto *button : {zoomOut, zoomIn, fitClip, fitVideo}) zoomRow->addWidget(button);
-    zoomRow->addStretch();
     connect(zoomOut, &QPushButton::clicked, this, [this] { timeline->zoom(1 / 1.5); });
     connect(zoomIn, &QPushButton::clicked, this, [this] { timeline->zoom(1.5); });
     connect(fitClip, &QPushButton::clicked, timeline, &RangeTimeline::zoomToClip);
@@ -276,18 +275,24 @@ void MainWindow::buildUi()
     transport->setContentsMargins(0, 0, 0, 0); transport->setHorizontalSpacing(6);
     transport->addLayout(playback, 0, 0);
     transport->addLayout(bounds, 0, 1);
+    transport->addWidget(rangeLabel, 0, 2, Qt::AlignRight | Qt::AlignVCenter);
     transport->setColumnStretch(0, 1); transport->setColumnStretch(2, 1);
-    transport->setColumnMinimumWidth(2, play->sizeHint().width() + loop->sizeHint().width() + 6);
+    const int sideWidth = std::max(playback->minimumSize().width(),
+        rangeLabel->fontMetrics().horizontalAdvance("Range: 00:00:00.000"));
+    transport->setColumnMinimumWidth(0, sideWidth);
+    transport->setColumnMinimumWidth(2, sideWidth);
     videoColumn->setSpacing(4);
     videoColumn->addLayout(transport);
     videoColumn->addWidget(timeline);
-    auto *timelineFooter = new QGridLayout;
-    timelineFooter->setContentsMargins(0, 0, 0, 0); timelineFooter->setHorizontalSpacing(6);
-    timelineFooter->addWidget(zoomControls, 0, 0);
-    timelineFooter->addWidget(current, 0, 1, Qt::AlignCenter);
-    timelineFooter->addWidget(rangeLabel, 0, 2, Qt::AlignRight);
-    timelineFooter->setColumnStretch(0, 1); timelineFooter->setColumnStretch(2, 1);
-    videoColumn->addLayout(timelineFooter);
+    // Place the timestamp in the timeline's label row, above its overview bar.
+    auto *currentRow = new QHBoxLayout(timeline);
+    currentRow->setContentsMargins(0, 35, 0, 20);
+    currentRow->addWidget(current, 0, Qt::AlignCenter);
+    current->setAttribute(Qt::WA_TransparentForMouseEvents);
+    auto *zoomFooter = new QHBoxLayout;
+    zoomFooter->setContentsMargins(0, 0, 0, 0);
+    zoomFooter->addStretch(); zoomFooter->addWidget(zoomControls); zoomFooter->addStretch();
+    videoColumn->addLayout(zoomFooter);
     auto *dock = new QWidget; dock->setObjectName("dock"); dock->setAttribute(Qt::WA_StyledBackground);
     auto *dockLayout = new QVBoxLayout(dock); dockLayout->setContentsMargins(12, 10, 12, 10);
     layout->addWidget(dock);

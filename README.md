@@ -5,7 +5,7 @@ The V1 implementation includes an embedded libmpv preview, draggable range,
 frame stepping, audio/subtitle selection, and FFmpeg export to MP4, MKV, WebM,
 and GIF. Multi Clip mode adds independent clip configurations and batch export.
 
-![mpv Clipper demo](assets/demo.gif)
+![mpv Clipper interface](assets/screenshot.png)
 
 ## Easy installation (release packages)
 
